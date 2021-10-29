@@ -1,0 +1,175 @@
+# Time Series Test
+
+# install.packages('plyr')
+# install.packages('dplyr')
+# install.packages('TTR')
+# install.packages('forecast')
+# install.packages('fpp3')
+# install.packages('tsibble')
+# install.packages('tseries')
+# install.packages('tidyverse')
+# install.packages('nycflights13')
+
+library(plyr)
+library(dplyr)
+library(TTR)
+library(forecast)
+library(fpp3)
+library(tsibble)
+library(tseries)
+library(tidyverse)
+library(nycflights13)
+library(zoo)
+
+
+
+#####################################
+# Data Setting
+nm = readClipboard() %>% as.numeric()
+sa_id = readClipboard() %>% as.numeric()
+reg = readClipboard() %>% as.numeric()
+date = seq(ymd('2017-04-01'), ymd('2021-09-01'), by ='month')
+
+test_df <- data.frame(date = date, nm = nm, sa_id = sa_id, reg = reg)
+
+
+nm_ts <- ts(nm, frequency = 12, start = c(2017,4), end = c(2021,9))
+sa_id_ts <- ts(sa_id, frequency = 12, start = c(2017,4), end = c(2021,9))
+reg_ts <- ts(reg, frequency = 12, start = c(2017,4), end = c(2021,9))
+
+#####################################
+
+# Auto Plot 확인
+autoplot(decompose(nm_ts))
+autoplot(decompose(sa_id_ts))
+#####################################
+
+
+# 정상성 시계열 자료로 변환
+nm_ts_diff <- diff(log(nm_ts))
+sa_id_ts_diff <- diff(log(sa_id_ts))
+#####################################
+
+
+#####################################
+#####################################
+#####################################
+# Auto Arima 확인해보기
+# Only TS
+auto.arima(nm_ts)
+auto.arima(sa_id_ts)
+
+# Only TS
+# New Members Arima 모형 만들기
+nm_arima <- arima(nm_ts, order = c(0,0,1))
+nm_fcast <- forecast(nm_arima, h=15)
+nm_fcast
+plot(nm_fcast)
+
+# SA ID Arima 모형 만들기
+sa_id_arima <- arima(sa_id_ts, order = c(0,1,0), seasonal = list(order=c(0,1,1), period=12))
+sa_id_fcast <- forecast(sa_id_arima, h=15)
+sa_id_fcast
+plot(sa_id_fcast)
+
+
+#####################################
+#####################################
+# TS diff
+# auto.arima(nm_ts_diff)
+# auto.arima(sa_id_ts_diff)
+# 
+# # Ts diff
+# # New Members Arima 모형 만들기
+# nm_arima <- arima(nm_ts_diff, order = c(0,0,1))
+# nm_fcast <- forecast(nm_arima, h=15)
+# nm_fcast
+# plot(nm_fcast)
+# 
+# # SA ID Arima 모형 만들기
+# sa_id_arima <- arima(sa_id_ts, order = c(0,1,0), seasonal = list(order=c(0,1,1), period=12))
+# sa_id_fcast <- forecast(sa_id_arima, h=15)
+# sa_id_fcast
+# plot(sa_id_fcast)
+
+
+
+####################################################################################################################################################
+# tslm version
+nm_tslm <- tslm(nm_ts~trend+I(trend^2)+season)
+plot(forecast(nm_tslm, h=15))
+
+sa_id_tslm <- tslm(sa_id_ts~trend+I(trend^2)+season)
+plot(forecast(sa_id_tslm, h=15))
+
+
+####################################################################################################################################################
+# tsibble - Linear Model
+ts_df <- data.frame(date = as.Date(c(1:54)),
+                    nm = nm_ts,
+                    sa_id = sa_id_ts,
+                    reg = reg_ts)
+
+
+test_df_tibble <- as.tibble(ts_df)
+test_tsbl <- as_tsibble(test_df_tibble, index = date)
+
+#TSLM 해보기 - NM
+fit_nm <- 
+  test_tsbl %>%
+  model(TSLM(nm ~ season()))
+
+fit_nm_foc <- fit_nm %>% forecast(h=15)
+fit_nm_foc %>% autoplot(test_tsbl)
+
+
+#TSLM 해보기 - sa_id
+fit_sa_id <- 
+  test_tsbl %>%
+  model(TSLM(sa_id ~ season()))
+
+fit_sa_foc <- fit_sa_id %>% forecast(h=15)
+fit_sa_foc %>% autoplot(test_tsbl)
+
+
+
+
+
+
+
+# fit_consMR <- us_change %>% 
+#   model(tslm = TSLM(formula = Consumption ~ Income + Production + Unemployment + Savings))
+# 
+# fit_consMR %>% 
+#   report()
+# 
+# fit_consMR %>% 
+#   augment()
+# 
+# fit_consMR %>% 
+#   gg_tsresiduals()
+# 
+# 
+# 
+# temp_fit <- aus_airpassengers %>% 
+#   filter(Year <= 2011) %>% 
+#   left_join(guinea_rice, by = "Year") %>% 
+#   model(TSLM(Passengers ~ Production))
+# 
+# 
+# recent_production <- aus_production %>% 
+#   filter(year(Quarter) >= 1992)
+# 
+# fit_beer <- recent_production %>% 
+#   model(TSLM(formula = Beer ~ trend() + season()))
+# 
+# recent_production %>% 
+#   model(TSLM(formula = Beer ~ trend() + fourier(K = 2))) %>% 
+#   report()
+# 
+# 
+# 
+# fc_beer <- fit_beer %>% 
+#   forecast()
+
+
